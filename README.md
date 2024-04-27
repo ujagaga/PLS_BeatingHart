@@ -8,6 +8,9 @@ The servos used are SG90.
 
 The OLED LCD is a 128x64 pixel 0.96" I2C display.
 
+The pls_hart_speed.sh can set different speed 1-5 like: 
+
+       pls_hart_speed.sh <speed>
 
 
 ## Contact ##
