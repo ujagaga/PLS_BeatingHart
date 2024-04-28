@@ -1,17 +1,20 @@
 #include <ssd1306.h>
 #include <EEPROM.h>
+#include <SoftwareSerial.h>
 
 
 #define SERVO1PIN     1
 #define SERVO2PIN     2
-#define PWR_ON_PIN    0
+#define UART_TX_PIN   255
+#define UART_RX_PIN   0
 #define OLED_SCL_PIN  3
 #define OLED_SDA_PIN  4
 
 /* Servo pulse duration 1000us to 2000us */
 #define MIN_ANGLE   1200
 #define MAX_ANGLE   1800
-#define INCREMENT   5
+#define MIN_SPEED   5
+#define MAX_SPEED   100
 
 #define STATE_OFF           0
 #define STATE_UP_CONTRACT   1
@@ -21,21 +24,18 @@
 #define SCREEN_OFFSET       32
 #define IMG_START           40
 #define IMG_TRAIL           70
-
-#define CMD_TIMEOUT       (100) 
-#define CMD_MAX           (5)
-#define CMD_MIN           (1)
+#define CMD_TIMEOUT         100
 
 uint32_t angle1 = MIN_ANGLE;
 uint32_t angle2 = MIN_ANGLE;
-uint8_t speed = INCREMENT;    
+uint8_t speed = MIN_SPEED;    
 bool pwr_flag = false;
 uint8_t h_state = STATE_OFF;
 uint8_t cursorx = 0;
 uint8_t yoffset;
-uint8_t cmd = 0;
 uint32_t cmd_timestamp = 0;
 
+SoftwareSerial mySerial(UART_RX_PIN, UART_TX_PIN);
 
 void servo_delay_short(uint32_t duration_us){ 
   while(duration_us > 500){
@@ -131,71 +131,51 @@ void draw_screensaver(){
 }
 
 uint8_t cmd_rx(){  
-  if(pwr_flag){ 
-    if(cmd_timestamp && ((millis() - cmd_timestamp) > CMD_TIMEOUT) ){
-      if(cmd > CMD_MAX){
-        cmd = CMD_MAX;
-      }
-      if(cmd < CMD_MIN){
-        cmd = CMD_MIN;
-      }
+  uint8_t rx = 0;  
 
-      speed = INCREMENT * cmd;     
-
-      EEPROM.begin();
-      EEPROM.update(0, cmd);
-      EEPROM.end();  
-
-      cmd_timestamp = 0;
-      cmd = 0;
-    }
-  }else{    
-    if(cmd_timestamp == 0){
-      cmd_timestamp = millis();
-    }
-
-    /* Changing speed or shutting down */
-    while((digitalRead(PWR_ON_PIN) == LOW) && ((millis() - cmd_timestamp) < CMD_TIMEOUT)){};     
-    
-    cmd++;
-
-    if((millis() - cmd_timestamp) >= CMD_TIMEOUT){
-      cmd_timestamp = 0;
-      cmd = 0;      
-    } 
+  while(mySerial.available()) {
+    rx = mySerial.read();          
   }
+
+  if((rx > 0) && (rx <= MAX_SPEED)){ 
+    speed = MIN_SPEED + rx - 1;   
+
+    EEPROM.begin();
+    EEPROM.update(1, speed);
+    EEPROM.end();          
+  }    
 }
    
 void setup() {
-  pinMode(PWR_ON_PIN, INPUT); 
+  pinMode(UART_RX_PIN, INPUT); 
   pinMode(SERVO1PIN, OUTPUT); 
   pinMode(SERVO2PIN, OUTPUT); 
   digitalWrite(SERVO1PIN, LOW);
-  digitalWrite(SERVO2PIN, LOW); 
+  digitalWrite(SERVO2PIN, LOW);   
 
   ssd1306_128x64_i2c_initEx(3,4,0);
   ssd1306_fillScreen(0x00);  
   draw_screensaver();
 
   EEPROM.begin();
-  cmd = EEPROM.read(0);
-  EEPROM.end();
+  speed = EEPROM.read(1);
+  EEPROM.end(); 
 
-  if(cmd > CMD_MAX){
-    cmd = CMD_MAX;
+  if(speed > MAX_SPEED ){
+    speed = MAX_SPEED;
   }
-  if(cmd < CMD_MIN){
-    cmd = CMD_MIN;
-  }
+  if(speed < MIN_SPEED){
+    speed = MIN_SPEED;
+  }  
 
-  speed = INCREMENT * cmd;  
+  mySerial.begin(9600);
 }
 
-void loop()  {
-  pwr_flag = (digitalRead(PWR_ON_PIN) == HIGH);
+void loop()  { 
   cmd_rx();
+  pwr_flag = (digitalRead(UART_RX_PIN) == HIGH);  
 
-  if(!pwr_flag){
+  if(!pwr_flag){ 
     if(h_state != STATE_OFF){
       h_state = STATE_OFF;
       draw_screensaver();     
