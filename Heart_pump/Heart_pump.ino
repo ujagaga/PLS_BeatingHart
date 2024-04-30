@@ -13,8 +13,8 @@
 /* Servo pulse duration 1000us to 2000us */
 #define MIN_ANGLE   1200
 #define MAX_ANGLE   1800
-#define MIN_SPEED   5
 #define MAX_SPEED   100
+#define EEPROM_ADDR 2
 
 #define STATE_OFF           0
 #define STATE_UP_CONTRACT   1
@@ -25,10 +25,11 @@
 #define IMG_START           40
 #define IMG_TRAIL           70
 #define CMD_TIMEOUT         100
+#define CMD_START           0xA5
 
 uint32_t angle1 = MIN_ANGLE;
 uint32_t angle2 = MIN_ANGLE;
-uint8_t speed = MIN_SPEED;    
+uint8_t speed = 5;    
 bool pwr_flag = false;
 uint8_t h_state = STATE_OFF;
 uint8_t cursorx = 0;
@@ -131,18 +132,32 @@ void draw_screensaver(){
 }
 
 uint8_t cmd_rx(){  
-  uint8_t rx = 0;  
+  uint8_t rx = 0;
+  bool rx_received = false;  
+  uint8_t last_rx = 0;
 
   while(mySerial.available()) {
-    rx = mySerial.read();          
+    rx = mySerial.read();
+
+    if(rx == CMD_START){
+      last_rx = rx;
+    }else if(last_rx == CMD_START){
+      rx_received = true;
+      last_rx = rx;
+    }         
   }
 
-  if((rx > 0) && (rx <= MAX_SPEED)){ 
-    speed = MIN_SPEED + rx - 1;   
+  if(rx_received){ 
+    speed = rx;
+
+    if(speed > MAX_SPEED){
+      speed = MAX_SPEED;
+    }
 
     EEPROM.begin();
-    EEPROM.update(1, speed);
-    EEPROM.end();          
+    EEPROM.update(EEPROM_ADDR, speed);
+    EEPROM.end();  
+    // mySerial.write(speed);        
   }    
 }
    
@@ -158,14 +173,12 @@ void setup() {
   draw_screensaver();
 
   EEPROM.begin();
-  speed = EEPROM.read(1);
+  speed = EEPROM.read(EEPROM_ADDR);
   EEPROM.end(); 
 
   if(speed > MAX_SPEED ){
-    speed = MAX_SPEED;
-  }
-  if(speed < MIN_SPEED){
-    speed = MIN_SPEED;
+    // Not saved. Use low speed.
+    speed = 5;
   }  
 
   mySerial.begin(9600);
@@ -184,6 +197,15 @@ void loop()  {
     if(h_state == STATE_OFF){
       h_state = STATE_UP_CONTRACT;
       ssd1306_fillScreen(0x00); 
+
+      EEPROM.begin();
+      speed = EEPROM.read(EEPROM_ADDR);
+      EEPROM.end(); 
+
+      if(speed > MAX_SPEED ){
+        // Not saved. Use low speed.
+        speed = 5;
+      }  
     }else{  
       draw_ecg();    
 
