@@ -8,9 +8,14 @@ The servos used are SG90.
 
 The OLED LCD is a 128x64 pixel 0.96" I2C display.
 
-The pls_hart_speed.sh can set different speed 1-5 like: 
+A wire is connected between UART1 on GPIO header of the RPI5 and pin 0 of the AtTiny85 board. To set the beating speed, send a message at baud 9600, starting with "0xA5 0xA5" and then the speed you want between 0 and 100:
 
-       pls_hart_speed.sh <speed>
+       0xA5 0xA5 5
+
+To make it simpler, I included a Python script: "hart_speed.py". Before you run it, you need to have TkInter installed.
+
+       sudo apt install python3-tk
+
 
 
 ## Contact ##
