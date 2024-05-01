@@ -3,9 +3,12 @@
 import serial
 import tkinter as tk
 
+port = "/dev/ttyS1"
+baud = 9600
+
 
 def set_speed(speed):
-    ser = serial.Serial('/dev/ttyUSB0', 9600, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE)
+    ser = serial.Serial(port, baud, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE)
 
     values = bytearray([0xa5, 0xa5, speed])
     ser.write(values)
@@ -13,7 +16,7 @@ def set_speed(speed):
 
 
 root = tk.Tk()
-root.minsize(200, 50)
+root.minsize(250, 60)
 root.title("PLS Hart Speed")
 
 
