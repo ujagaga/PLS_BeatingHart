@@ -35,6 +35,7 @@ uint8_t h_state = STATE_OFF;
 uint8_t cursorx = 0;
 uint8_t yoffset;
 uint32_t cmd_timestamp = 0;
+uint32_t servo_sync_timestamp = 0;
 
 SoftwareSerial mySerial(UART_RX_PIN, UART_TX_PIN);
 
@@ -47,17 +48,24 @@ void servo_delay_short(uint32_t duration_us){
   
 }
 
-void servo_write(int pin, uint32_t duration_us){
-  uint32_t pause = 20000-duration_us;
-  uint32_t short_pause = pause - 17600;
+void update_servos(){  
+  uint32_t next_sync = servo_sync_timestamp + 20;  
 
-  digitalWrite(pin, HIGH);
-  servo_delay_short(duration_us);
-  digitalWrite(pin, LOW);
+  while(millis() < next_sync){ /* Wait for 20ms to pass since last servo update */ }
+  servo_sync_timestamp = millis();
 
-  delay(18);
-  delayMicroseconds(short_pause);
+  /* Servo command pulse is up to 2ms long */
+  digitalWrite(SERVO1PIN, HIGH);
+  servo_delay_short(angle1);
+  digitalWrite(SERVO1PIN, LOW);
+  
+  next_sync = servo_sync_timestamp + 3;
+  while(millis() < next_sync){ /* wait 3ms since sync to update second servo */ }
 
+  /* Update second servo */
+  digitalWrite(SERVO2PIN, HIGH);
+  servo_delay_short(angle2);
+  digitalWrite(SERVO2PIN, LOW);
 }
 
 void draw_ecg(){
@@ -211,33 +219,31 @@ void loop()  {
 
       if(h_state == STATE_UP_CONTRACT){
         if(angle1 < MAX_ANGLE){
-          angle1 += speed;
-          servo_write(SERVO1PIN, angle1);     
+          angle1 += speed;              
         }else{
           h_state = STATE_UP_EXPAND;
         }
       }else if(h_state == STATE_UP_EXPAND){
         if(angle1 > MIN_ANGLE){
           angle1 -= speed;
-          servo_write(SERVO1PIN, angle1);
         }else{
           h_state = STATE_DOWN_CONTRACT;
         }
       }else if(h_state == STATE_DOWN_CONTRACT){
         if(angle2 < MAX_ANGLE){
           angle2 += speed;
-          servo_write(SERVO2PIN, angle2);
         }else{
           h_state = STATE_DOWN_EXPAND;
         }
       }else if(h_state == STATE_DOWN_EXPAND){
         if(angle2 > MIN_ANGLE){
-          angle2 -= speed;
-          servo_write(SERVO2PIN, angle2);
+          angle2 -= speed;          
         }else{
           h_state = STATE_UP_CONTRACT;            
         }
       }
+
+      update_servos();
     }
   }
 }
