@@ -1,14 +1,13 @@
 #include <ssd1306.h>
 #include <EEPROM.h>
-#include <SoftwareSerial.h>
 
 
-#define SERVO1PIN     1
-#define SERVO2PIN     2
-#define UART_TX_PIN   255
-#define UART_RX_PIN   0
-#define OLED_SCL_PIN  3
-#define OLED_SDA_PIN  4
+#define PWR_PIN_1     3
+#define PWR_PIN_2     4
+#define SERVO1PIN     5
+#define SERVO2PIN     6
+#define OLED_SCL_PIN  8
+#define OLED_SDA_PIN  7
 
 /* Servo pulse duration 1000us to 2000us */
 #define MIN_ANGLE   1200
@@ -30,14 +29,13 @@
 uint32_t angle1 = MIN_ANGLE;
 uint32_t angle2 = MIN_ANGLE;
 uint8_t speed = 5;    
-bool pwr_flag = false;
+bool pwr_flag = true;
 uint8_t h_state = STATE_OFF;
 uint8_t cursorx = 0;
 uint8_t yoffset;
 uint32_t cmd_timestamp = 0;
 uint32_t servo_sync_timestamp = 0;
 
-SoftwareSerial mySerial(UART_RX_PIN, UART_TX_PIN);
 
 void servo_delay_short(uint32_t duration_us){ 
   while(duration_us > 500){
@@ -140,39 +138,41 @@ void draw_screensaver(){
 }
 
 uint8_t cmd_rx(){  
-  uint8_t rx = 0;
-  bool rx_received = false;  
-  uint8_t last_rx = 0;
+  // uint8_t rx = 0;
+  // bool rx_received = false;  
+  // uint8_t last_rx = 0;
 
-  while(mySerial.available()) {
-    rx = mySerial.read();
+  // while(mySerial.available()) {
+  //   rx = mySerial.read();
 
-    if(rx == CMD_START){
-      last_rx = rx;
-    }else if(last_rx == CMD_START){
-      rx_received = true;
-      last_rx = rx;
-    }         
-  }
+  //   if(rx == CMD_START){
+  //     last_rx = rx;
+  //   }else if(last_rx == CMD_START){
+  //     rx_received = true;
+  //     last_rx = rx;
+  //   }         
+  // }
 
-  if(rx_received){ 
-    speed = rx;
+  // if(rx_received){ 
+  //   speed = rx;
 
-    if(speed > MAX_SPEED){
-      speed = MAX_SPEED;
-    }
+  //   if(speed > MAX_SPEED){
+  //     speed = MAX_SPEED;
+  //   }
 
-    EEPROM.begin();
-    EEPROM.update(EEPROM_ADDR, speed);
-    EEPROM.end();  
-    // mySerial.write(speed);        
-  }    
+  //   EEPROM.begin();
+  //   EEPROM.update(EEPROM_ADDR, speed);
+  //   EEPROM.end();  
+  //   // mySerial.write(speed);        
+  // }    
 }
    
 void setup() {
-  pinMode(UART_RX_PIN, INPUT); 
+  pinMode(PWR_PIN_1, INPUT_PULLUP); 
+  pinMode(PWR_PIN_2, OUTPUT); 
   pinMode(SERVO1PIN, OUTPUT); 
   pinMode(SERVO2PIN, OUTPUT); 
+  digitalWrite(PWR_PIN_2, LOW);
   digitalWrite(SERVO1PIN, LOW);
   digitalWrite(SERVO2PIN, LOW);   
 
@@ -188,13 +188,10 @@ void setup() {
     // Not saved. Use low speed.
     speed = 5;
   }  
-
-  mySerial.begin(9600);
 }
 
 void loop()  { 
-  cmd_rx();
-  pwr_flag = (digitalRead(UART_RX_PIN) == HIGH);  
+  // pwr_flag = (digitalRead(UART_RX_PIN) == HIGH);  
 
   if(!pwr_flag){ 
     if(h_state != STATE_OFF){
@@ -205,15 +202,6 @@ void loop()  {
     if(h_state == STATE_OFF){
       h_state = STATE_UP_CONTRACT;
       ssd1306_fillScreen(0x00); 
-
-      EEPROM.begin();
-      speed = EEPROM.read(EEPROM_ADDR);
-      EEPROM.end(); 
-
-      if(speed > MAX_SPEED ){
-        // Not saved. Use low speed.
-        speed = 5;
-      }  
     }else{  
       draw_ecg();    
 
