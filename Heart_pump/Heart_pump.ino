@@ -6,8 +6,8 @@
 #define PWR_PIN_2     4
 #define SERVO1PIN     5
 #define SERVO2PIN     6
-#define OLED_SCL_PIN  8
-#define OLED_SDA_PIN  7
+#define OLED_SCL_PIN  7
+#define OLED_SDA_PIN  8
 
 /* Servo pulse duration 1000us to 2000us */
 #define MIN_ANGLE   1200
